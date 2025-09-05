@@ -192,7 +192,6 @@
                 if (json.length > 0) {
                     json.forEach(function(entrega) {
                         let prev = entrega.prev_delivery;
-                        // Use status_code for the check, which is the numeric ID
                         let danger = (prev < hoje && entrega.status_code != 4) ? 'danger' : '';
                         html += `<tr class="${danger}">
                             <td>${entrega.num_nota}</td>
@@ -281,4 +280,5 @@
     }
 </script>
 {{ footer }}
+
 
