@@ -239,7 +239,7 @@
     $(document).ready(function() {
         $('#input-transportadora').keyup(function() {
             var searchTerm = $(this).val();
-            if (searchTerm.length > 0) { // Changed condition to trigger after one letter
+            if (searchTerm.length > 0) {
                 autocomplete(searchTerm);
             } else {
                 $('#autocomplete-transportadora').html('').hide();
