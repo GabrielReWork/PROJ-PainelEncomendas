@@ -1,0 +1,284 @@
+{{ header }}
+{{ column_left }}
+
+
+<div id="content">
+	<div class="page-header">
+		<div class="container-fluid">
+			<div class="pull-right">
+
+				
+			</div>
+			<h1>{{ heading_title }}</h1>
+		</div>
+	</div>
+
+	<div class="container-fluid">
+		<div class="row">
+			<!-- Painel Filtros - Coluna direita -->
+			<div id="filter-product" class="col-md-3 col-md-push-9 col-sm-12">
+				<div class="panel panel-default">
+					<div class="panel-heading">
+						<h3 class="panel-title">
+							<i class="fa fa-filter"></i> Filtros
+						</h3>
+					</div>
+					<div class="panel-body">
+						<form method="post" enctype="multipart/form-data" id="form-rast">
+
+
+							<div class="form-group">
+								<label class="control-label" for="input-local">NFe</label>
+								<input type="text" name="nfe" value="" placeholder="Digite a NFe" id="input-nfe" class="form-control" />
+							</div>
+
+						
+							<div class="form-group">
+								<label class="control-label" for="input-local">Status</label>
+								<select name="status" id="input-status" class="form-control" required>
+									<option value="" disabled selected>Selecione o Status</option>
+									{% for status in statuss %}
+										<option value="{{ status.id }}" {% if entrega.status == status.id %}selected{% endif %}>{{ status.name }}</option>
+									{% endfor %}
+								</select>
+							</div>
+
+							<div class="form-group">
+								<label class="control-label" for="input-local">CPF/CNPJ do cliente</label>
+								<input type="text" name="cpf_cliente" value="" placeholder="Digite o CPF/CNPJ do cliente" id="input-cpf-cliente" class="form-control" />
+							</div>
+
+							<div class="form-group position-relative">
+								<label class="control-label" for="input-transportadora">Transportadora</label>
+								<input type="text" name="transportadora" value="" placeholder="Digite a Transportadora" id="input-transportadora" class="form-control" autocomplete="off" />
+								<ul id="autocomplete-transportadora" class="dropdown-menu"></ul>
+							</div>
+
+							<div class="form-group text-right">
+								<button type="button" id="button-filter" class="btn btn-default">
+									<i class="fa fa-filter"></i> Filtrar
+								</button>
+							</div>
+						</form>
+					</div>
+				</div>
+			</div>
+
+			<!-- Painel Tabela Sensores - Coluna esquerda -->
+			<div class="col-md-9 col-md-pull-3 col-sm-12">
+				<div class="panel panel-default">
+					<div class="panel-heading">
+						<h3 class="panel-title"><i class="fa fa-list"></i> Entregas</h3>
+					</div>
+					<div class="panel-body">
+						<div class="table-responsive">
+							<table class="table table-bordered table-hover">
+								<thead>
+									<tr>
+										<th style="width: 25%;">NFe</th>
+										<th style="width: 25%;">Transportadora</th>
+										<th style="width: 25%;">Previsão de entrega</th>
+										<th style="width: 25%;">Status</th>
+
+									</tr>
+								</thead>
+								<tbody>
+									{% if entregas %}
+										{% for entrega in entregas %}
+											{% set today = "now"|date("Y-m-d") %}
+											{% set prev = entrega.prev_delivery|date("Y-m-d") %}
+											{% set is_late = prev < today and entrega.status != 'ENTREGUE' %}
+											
+											{% set status_class = '' %}
+											
+											{% if entrega.status in ['DEVOLUÇÃO', 'EXTRAVIO', 'DANIFICADO', 'FURTO/ROUBO'] %}
+												{% set status_class = 'warning' %}
+											{% elseif entrega.status == 'CANCELADA' %}
+												{% set status_class = 'danger' %}
+											{% elseif is_late %}
+												{% set status_class = 'danger' %}
+											{% endif %}
+
+											<tr class="{{ status_class }}">
+												<td>{{ entrega.num_nota }}</td>
+												<td>{{ entrega.firstname }}</td>
+												<td>{{ entrega.prev_delivery ? entrega.prev_delivery : '' }}</td>
+												<td>{{ entrega.status ? entrega.status : '' }}</td>
+											</tr>
+										{% endfor %}
+									{% else %}
+										<tr>
+											<td colspan="4" class="text-center">Sem resultados.</td>
+										</tr>
+									{% endif %}
+								</tbody>
+							</table>
+						</div>
+					</div>
+				</div>
+			</div>
+		</div>
+	</div>
+</div>
+
+<style>
+
+/*apenas para o autocomplete ficar bonitinho*/
+.position-relative {
+    position: relative;
+}
+#autocomplete-transportadora {
+    position: absolute;
+    top: 100%;
+    left: 0;
+    z-index: 1000;
+    width: 100%;
+    display: none;
+}
+#autocomplete-transportadora li a {
+    display: block;
+    padding: 5px 10px;
+    clear: both;
+    font-weight: 400;
+    line-height: 1.42857143;
+    color: #333;
+    white-space: nowrap;
+    max-width: 100%;
+    overflow: hidden;
+    text-overflow: ellipsis; 
+}
+#autocomplete-transportadora li a:hover {
+    color: #fff;
+    background-color: #337ab7;
+}
+</style>
+
+<script>
+
+	// Filtrar
+    $('#button-filter').on('click', function(e) {
+        e.preventDefault();
+        let nfe = $('#input-nfe').val();
+        let status = $('#input-status').val();
+        let transportadora = $('#input-transportadora').val().toUpperCase();
+        let cpf_cliente = $('#input-cpf-cliente').val();
+
+        // remove tudo que não for número para padronizar a busca
+        cpf_cliente = cpf_cliente.replace(/\D/g, '');
+        nfe = nfe.replace(/\D/g, '');
+
+        // formata o cpf/cnpj
+        cpf_cliente = formatCnpjCpf(cpf_cliente);
+
+        $.ajax({
+            url: 'index.php?route=fretes/painelEncomendas/filter&user_token={{ user_token }}',
+            type: 'post',
+            data: {
+                nfe: nfe,
+                status: status,
+                transportadora: transportadora,
+                cpf_cliente: cpf_cliente
+            },
+            dataType: 'json',
+            beforeSend: function() {
+                $('#button-filter').button('loading');
+            },
+            complete: function() {
+                $('#button-filter').button('reset');
+            },
+            success: function(json) {
+                let hoje = new Date().toISOString();
+                let html = '';
+                if (json.length > 0) {
+                    json.forEach(function(entrega) {
+                        let prev = entrega.prev_delivery;
+                        // Use status_code for the check, which is the numeric ID
+                        let danger = (prev < hoje && entrega.status_code != 4) ? 'danger' : '';
+                        html += `<tr class="${danger}">
+                            <td>${entrega.num_nota}</td>
+                            <td>${entrega.firstname}</td>
+                            <td>${entrega.prev_delivery ? entrega.prev_delivery : ''}</td>
+                            <td>${entrega.status ? entrega.status : ''}</td>
+                        </tr>`;
+
+						$('#form-rast')[0].reset();
+                    });
+                } else {
+                    html = `<tr><td colspan="4" class="text-center">Sem resultados.</td></tr>`;
+                }
+                $('.table tbody').html(html);
+            },
+            error: function(xhr, ajaxOptions, thrownError) {
+                console.error(thrownError + "\r\n" + xhr.statusText + "\r\n" + xhr.responseText);
+            }
+        });
+    });
+
+	// Função para formatar CPF/CNPJ
+    function formatCnpjCpf(value) {
+        const cnpjCpf = value.replace(/\D/g, '');
+
+        if (cnpjCpf.length === 11) {
+            return cnpjCpf.replace(/(\d{3})(\d{3})(\d{3})(\d{2})/g, "\$1.\$2.\$3-\$4");
+        }
+
+        return cnpjCpf.replace(/(\d{2})(\d{3})(\d{3})(\d{4})(\d{2})/g, "\$1.\$2.\$3/\$4-\$5");
+    }
+
+
+	//filtra automaticamente se aprertar enter
+	$('#form-rast input').on('keydown', function(e) {
+		if (e.key === 'Enter') {
+			e.preventDefault();
+			$('#button-filter').trigger('click');
+		}
+	});
+
+
+	//AUTOCOMPLETE TRANSPORTADORA
+    $(document).ready(function() {
+        $('#input-transportadora').keyup(function() {
+            var searchTerm = $(this).val();
+            if (searchTerm.length > 0) { // Changed condition to trigger after one letter
+                autocomplete(searchTerm);
+            } else {
+                $('#autocomplete-transportadora').html('').hide();
+            }
+        });
+    });
+
+    
+    $('#autocomplete-transportadora').on('click', 'li a', function(e) {
+        e.preventDefault();
+        const selectedName = $(this).text();
+        $('#input-transportadora').val(selectedName);
+        $('#autocomplete-transportadora').html('').hide();
+    });
+
+    function autocomplete(firstname) {
+        $.ajax({
+            url: 'index.php?route=fretes/painelEncomendas/autocomplete&user_token={{ user_token }}',
+            type: 'post',
+            data: {
+                firstname: firstname
+            },
+            dataType: 'json',
+            success: function(json) {
+                let html = '';
+                if (json.length > 0) {
+                    json.forEach(function(item) {
+                        html += `<li><a href="#">${item.firstname}</a></li>`;
+                    });
+                    $('#autocomplete-transportadora').html(html).show();
+                } else {
+                    $('#autocomplete-transportadora').html('').hide();
+                }
+            },
+            error: function(xhr, ajaxOptions, thrownError) {
+                console.error(thrownError + "\r\n" + xhr.statusText + "\r\n" + xhr.responseText);
+            }
+        });
+    }
+</script>
+{{ footer }}
+
